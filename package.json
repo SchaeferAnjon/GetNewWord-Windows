@@ -1,0 +1,45 @@
+{
+  "name": "getnewword",
+  "productName": "GetNewWord",
+  "version": "1.0.0",
+  "description": "截图取词 → AI 释义 → 词库 → Anki 卡片（Windows 版，与 macOS 版逻辑一致）",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis portable"
+  },
+  "author": "Schaefer",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^38.8.6",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.getnewword.app",
+    "productName": "GetNewWord",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "renderer/**/*",
+      "assets/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false
+    }
+  },
+  "allowScripts": {
+    "electron@38.8.6": true
+  }
+}
