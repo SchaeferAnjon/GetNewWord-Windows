@@ -261,6 +261,10 @@ async function syncWord(w) {
     } catch {}
   }
 
+  // 没拿到本地音频/截图：不带字段，updateNoteFields 不会覆盖 Anki 卡上已有内容
+  if (fields.Audio === '') delete fields.Audio;
+  if (fields.Screenshot === '') delete fields.Screenshot;
+
   const tags = ['GetNewWord', `lang:${w.language}`];
 
   if (w.ankiNoteId) {
@@ -297,6 +301,7 @@ async function syncSnippet(s) {
       fields.Screenshot = `<img src="${filename}">`;
     } catch {}
   }
+  if (fields.Screenshot === '') delete fields.Screenshot;   // 没有本地截图不覆盖 Anki 已有的
   // 优先用已存的 noteId；老数据按 Title 查一次并回填
   let noteId = s.ankiNoteId;
   if (!noteId) {
@@ -327,6 +332,12 @@ async function pruneDeleted() {
     let infos;
     try { infos = await send('notesInfo', { notes: ids }); } catch { return []; }
     if (!Array.isArray(infos) || infos.length !== ids.length) return [];
+    // 熔断：绝大多数本地卡都"在 Anki 不存在" = 换库/换配置/新账号，绝不能当成用户删卡
+    const missing = infos.filter(i => !i || i.noteId == null).length;
+    if (missing > 2 && missing * 5 >= ids.length * 4) {
+      log(`[Anki] 熔断：${missing}/${ids.length} 本地卡在 Anki 中不存在，疑似换库，跳过反向清理`);
+      return [];
+    }
     const gone = [];
     infos.forEach((info, i) => {
       if (!info || info.noteId == null) {
@@ -372,7 +383,124 @@ async function syncEverythingPending() {
   return { synced: pendingWords.length + pendingSnippets.length };
 }
 
+// ---------- 灾难恢复：从 Anki 反向导入词库 ----------
+
+function stripHTML(s) {
+  return (s || '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/\[sound:[^\]]*\]/g, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .trim();
+}
+function divContents(html, cls) {
+  const re = new RegExp(`<div class="${cls}">(.*?)</div>`, 'gs');
+  const out = []; let m;
+  while ((m = re.exec(html || ''))) out.push(stripHTML(m[1]));
+  return out;
+}
+function parseAnalysisHTML(html) {
+  const r = {};
+  for (const part of (html || '').split('<div class="lbl">').slice(1)) {
+    const i = part.indexOf('</div>');
+    if (i < 0) continue;
+    const label = part.slice(0, i).replace(/\s/g, '');
+    const body = part.slice(i + 6);
+    const lines = (b) => b.split('<div class="ctx">').slice(1).map(entry => {
+      const sub = entry.split('<div class="zh">');
+      const foreign = stripHTML(sub[0]);
+      const zh = sub.length > 1 ? stripHTML(sub[1]) : '';
+      return zh ? `${foreign} —— ${zh}` : foreign;
+    }).join('\n');
+    if (label === '用法') r.usage = stripHTML(body);
+    else if (label === '搭配') r.coll = lines(body);
+    else if (label === '例句') r.ex = lines(body);
+    else if (label === '词根词源') r.ety = stripHTML(body);
+  }
+  return r;
+}
+const LANG_FROM_DISPLAY = { 德语: 'de', 英语: 'en', 中文: 'zh', 法语: 'fr', 西班牙语: 'es', 日语: 'ja', 韩语: 'ko' };
+
+/// 从 Anki 反向导入（幂等：同 noteId / 同词跳过）。新装机时自动把词库拉回来。
+async function restoreFromAnki() {
+  if (!await isAnkiRunning()) return 0;
+  const localNoteIds = new Set(db.words().map(w => w.ankiNoteId).filter(Boolean));
+  const localKeys = new Set(db.words().map(w => `${w.word.toLowerCase()}|${w.language}`));
+  const noteDeckLeaf = new Map();
+  try {
+    for (const d of await deckNames()) {
+      const leaf = d.split('::').pop();
+      for (const m of [MODEL_NAME, SNIPPET_MODEL_NAME]) {
+        for (const id of await findNotes(`"deck:${d}" "note:${m}"`)) noteDeckLeaf.set(id, leaf);
+      }
+    }
+  } catch {}
+  const catFor = (leaf, forWords) => {
+    if (!leaf) return null;
+    const found = db.categories().find(c => c.name === leaf && c.parentId);
+    if (found) return found.id;
+    const created = db.createCategory(leaf, forWords);
+    return created ? created.id : null;
+  };
+  let restored = 0;
+  try {
+    const ids = await findNotes(`note:${MODEL_NAME}`);
+    if (ids.length) {
+      for (const info of await send('notesInfo', { notes: ids })) {
+        if (!info || info.noteId == null || localNoteIds.has(info.noteId)) continue;
+        const f = (k) => info.fields?.[k]?.value || '';
+        const word = stripHTML(f('Front'));
+        if (!word) continue;
+        const language = LANG_FROM_DISPLAY[f('Language')] || 'other';
+        const key = `${word.toLowerCase()}|${language}`;
+        if (localKeys.has(key)) continue;
+        localKeys.add(key);
+        const back = f('Back');
+        const cm = back.match(/<b[^>]*>([\s\S]*?)<\/b>/);
+        let sentences = divContents(f('Context'), 'ctx');
+        if (!sentences.length) { const s = stripHTML(f('Context')); if (s) sentences = [s]; }
+        let translations = divContents(f('ContextTranslation'), 'ctx-tr');
+        if (!translations.length) { const t = stripHTML(f('ContextTranslation')); if (t) translations = [t]; }
+        const a = parseAnalysisHTML(f('Analysis'));
+        db.insertRestoredWord({
+          word, phonetic: stripHTML(f('Phonetic')), language,
+          meaning: stripHTML(back), contextMeaning: cm ? stripHTML(cm[1]) : '',
+          contextSentence: sentences[0] || '', contextTranslation: translations[0] || '',
+          analysisNote: a.usage || '', grammar: stripHTML(f('Grammar')),
+          collocationsText: a.coll || '', examplesText: a.ex || '', etymology: a.ety || '',
+          difficulty: (f('Difficulty') || 'b1').toLowerCase(),
+          ankiNoteId: info.noteId,
+          categoryId: catFor(noteDeckLeaf.get(info.noteId), true),
+          contexts: sentences.map((s, i) => ({ sentence: s, translation: translations[i] || '' }))
+        });
+        restored++;
+      }
+    }
+    const sids = await findNotes(`"note:${SNIPPET_MODEL_NAME}"`);
+    if (sids.length) {
+      const localSnippetIds = new Set(db.snippets().map(s => s.ankiNoteId).filter(Boolean));
+      const localTitles = new Set(db.snippets().map(s => s.title));
+      for (const info of await send('notesInfo', { notes: sids })) {
+        if (!info || info.noteId == null || localSnippetIds.has(info.noteId)) continue;
+        const f = (k) => info.fields?.[k]?.value || '';
+        const title = stripHTML(f('Title'));
+        if (!title || localTitles.has(title)) continue;
+        localTitles.add(title);
+        db.insertRestoredSnippet({
+          title, content: stripHTML(f('Content')), sourceContext: stripHTML(f('Source')),
+          domain: stripHTML(f('Domain')), ankiNoteId: info.noteId,
+          categoryId: catFor(noteDeckLeaf.get(info.noteId), false) || catFor(stripHTML(f('Domain')), false)
+        });
+        restored++;
+      }
+    }
+  } catch (e) { log(`[Recovery] restore failed: ${e.message}`); }
+  if (restored) log(`[Recovery] restored ${restored} items from Anki`);
+  return restored;
+}
+
 module.exports = {
-  isAnkiRunning, deckNames, syncEverythingPending, syncWord,
+  isAnkiRunning, deckNames, syncEverythingPending, syncWord, restoreFromAnki,
   deleteAnkiNotes, deleteSnippetNote, deckNameForWord, deckNameForSnippet, hl
 };

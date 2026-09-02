@@ -104,6 +104,12 @@ gnw.on('play-audio', async (msg) => {
   if (msg.tts) speakTTS(msg.tts.text, msg.tts.language);
 });
 gnw.on('settings-changed', (s) => document.documentElement.style.setProperty('--fs', s.fontScale || 1));
+gnw.on('panel:setPin', (v) => {
+  pinned = v;
+  const b = document.getElementById('pin');
+  b.classList.toggle('active', v);
+  b.title = v ? '已钉住：点面板外/Esc 不会关闭' : '钉在桌面上';
+});
 gnw.invoke('db:all').then(d => document.documentElement.style.setProperty('--fs', d.settings.fontScale || 1));
 
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !pinned) gnw.send('panel:dismiss'); });
@@ -118,7 +124,6 @@ document.getElementById('pin').addEventListener('click', function () {
 
 function render() {
   if (!S) return;
-  pinned = false;
   renderHeader();
   renderContent();
   renderBottom();

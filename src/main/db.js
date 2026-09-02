@@ -321,8 +321,88 @@ function mergeDuplicateWords() {
   if (merged > 0) { save(); log(`[DB] merged ${merged} duplicate word entries`); }
 }
 
+/// 灾难恢复用：以完整字段直接落库（syncStatus=synced，不再推回 Anki）
+function insertRestoredWord(o) {
+  const now = new Date().toISOString();
+  db.words.push({
+    id: uuid(), word: o.word, phonetic: o.phonetic || '', language: o.language || 'other',
+    meaning: o.meaning || '', contextMeaning: o.contextMeaning || '',
+    contextSentence: o.contextSentence || '', contextTranslation: o.contextTranslation || '',
+    analysisNote: o.analysisNote || '', grammar: o.grammar || '',
+    collocationsText: o.collocationsText || '', examplesText: o.examplesText || '',
+    etymology: o.etymology || '', audioPath: null, screenshotPath: null,
+    difficulty: ['a1', 'a2', 'b1', 'b2', 'c1', 'c2'].includes(o.difficulty) ? o.difficulty : 'b1',
+    tags: [], createdAt: now, reviewCount: 0, ankiNoteId: o.ankiNoteId || null,
+    syncStatus: 'synced', isArchived: false, categoryId: o.categoryId || null,
+    contexts: (o.contexts || []).map(c => ({ id: uuid(), sentence: c.sentence, translation: c.translation || '', note: '', screenshotPath: null, createdAt: now }))
+  });
+  save();
+}
+function insertRestoredSnippet(o) {
+  db.snippets.push({
+    id: uuid(), title: o.title, content: o.content || '', sourceContext: o.sourceContext || '',
+    screenshotPath: null, tags: [], domain: o.domain || '', createdAt: new Date().toISOString(),
+    isArchived: false, syncStatus: 'synced', ankiNoteId: o.ankiNoteId || null, categoryId: o.categoryId || null
+  });
+  save();
+}
+
+/// 启动全量备份：db.json 快照到 userData/backups，保留最近 14 份
+function autoBackup() {
+  try {
+    if (!db.words.length && !db.snippets.length) return;
+    const dir = path.join(app.getPath('userData'), 'backups');
+    fs.mkdirSync(dir, { recursive: true });
+    const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 15);
+    atomicWrite(path.join(dir, `backup_${ts}.json`), db);
+    const files = fs.readdirSync(dir).filter(f => f.startsWith('backup_')).sort().reverse();
+    for (const f of files.slice(14)) fs.unlinkSync(path.join(dir, f));
+    log(`[Backup] ${db.words.length} words / ${db.snippets.length} snippets → backup_${ts}.json`);
+  } catch (e) { log(`[Backup] failed: ${e.message}`); }
+}
+
+/// 灾难恢复用：以完整字段直接落库（syncStatus=synced，不再推回 Anki）
+function insertRestoredWord(o) {
+  const now = new Date().toISOString();
+  db.words.push({
+    id: uuid(), word: o.word, phonetic: o.phonetic || '', language: o.language || 'other',
+    meaning: o.meaning || '', contextMeaning: o.contextMeaning || '',
+    contextSentence: o.contextSentence || '', contextTranslation: o.contextTranslation || '',
+    analysisNote: o.analysisNote || '', grammar: o.grammar || '',
+    collocationsText: o.collocationsText || '', examplesText: o.examplesText || '',
+    etymology: o.etymology || '', audioPath: null, screenshotPath: null,
+    difficulty: ['a1', 'a2', 'b1', 'b2', 'c1', 'c2'].includes(o.difficulty) ? o.difficulty : 'b1',
+    tags: [], createdAt: now, reviewCount: 0, ankiNoteId: o.ankiNoteId || null,
+    syncStatus: 'synced', isArchived: false, categoryId: o.categoryId || null,
+    contexts: (o.contexts || []).map(c => ({ id: uuid(), sentence: c.sentence, translation: c.translation || '', note: '', screenshotPath: null, createdAt: now }))
+  });
+  save();
+}
+function insertRestoredSnippet(o) {
+  db.snippets.push({
+    id: uuid(), title: o.title, content: o.content || '', sourceContext: o.sourceContext || '',
+    screenshotPath: null, tags: [], domain: o.domain || '', createdAt: new Date().toISOString(),
+    isArchived: false, syncStatus: 'synced', ankiNoteId: o.ankiNoteId || null, categoryId: o.categoryId || null
+  });
+  save();
+}
+
+/// 启动全量备份：db.json 快照到 userData/backups，保留最近 14 份
+function autoBackup() {
+  try {
+    if (!db.words.length && !db.snippets.length) return;
+    const dir = path.join(app.getPath('userData'), 'backups');
+    fs.mkdirSync(dir, { recursive: true });
+    const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 15);
+    atomicWrite(path.join(dir, `backup_${ts}.json`), db);
+    const files = fs.readdirSync(dir).filter(f => f.startsWith('backup_')).sort().reverse();
+    for (const f of files.slice(14)) fs.unlinkSync(path.join(dir, f));
+    log(`[Backup] ${db.words.length} words / ${db.snippets.length} snippets → backup_${ts}.json`);
+  } catch (e) { log(`[Backup] failed: ${e.message}`); }
+}
+
 module.exports = {
-  load, save, onChange, uuid,
+  load, save, onChange, uuid, insertRestoredWord, insertRestoredSnippet, autoBackup, insertRestoredWord, insertRestoredSnippet, autoBackup,
   getSetting, setSetting, allSettings,
   categories, category, leafCategories, createCategory, renameCategory, deleteCategory,
   categoryTreeDescription, categoryByName, rootCategory,

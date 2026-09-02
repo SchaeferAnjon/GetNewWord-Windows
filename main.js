@@ -82,16 +82,19 @@ function createPanelWindow() {
 }
 
 function showPanel() {
-  panelPinned = false;
-  const cursor = screen.getCursorScreenPoint();
-  const display = screen.getDisplayNearestPoint(cursor);
-  const wa = display.workArea;
-  const height = Math.min(792, wa.height - 60);
-  panelWindow.setBounds({
-    x: Math.round(Math.min(Math.max(cursor.x + 16, wa.x + 10), wa.x + wa.width - 554)),
-    y: Math.round(Math.min(Math.max(cursor.y + 16, wa.y + 10), wa.y + wa.height - height - 10)),
-    width: 544, height
-  });
+  // 钉住时：新一轮取词沿用原位置、保持钉住；未钉住才回到鼠标附近
+  if (!panelPinned) {
+    const cursor = screen.getCursorScreenPoint();
+    const display = screen.getDisplayNearestPoint(cursor);
+    const wa = display.workArea;
+    const height = Math.min(792, wa.height - 60);
+    panelWindow.setBounds({
+      x: Math.round(Math.min(Math.max(cursor.x + 16, wa.x + 10), wa.x + wa.width - 554)),
+      y: Math.round(Math.min(Math.max(cursor.y + 16, wa.y + 10), wa.y + wa.height - height - 10)),
+      width: 544, height
+    });
+  }
+  panelSend('panel:setPin', panelPinned);
   panelWindow.show();
 }
 
@@ -399,8 +402,13 @@ else {
       }, 3500);
     }
 
-    // 启动 8 秒后：补音频 + 自动同步积压条目（Anki 没开则静默跳过）
+    // 每次启动做一次全量备份（保留最近 14 份）
+    db.autoBackup();
+    // 启动 8 秒后：灾难恢复（本地无已同步单词而 Anki 有卡 → 自动反向导入，新装机词库自动到位）
     setTimeout(async () => {
+      if (!db.words().some(w => w.ankiNoteId)) {
+        await anki.restoreFromAnki();
+      }
       await audio.backfillAudio(db);
       await anki.syncEverythingPending();
       refreshMain();
