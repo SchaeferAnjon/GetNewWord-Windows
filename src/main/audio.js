@@ -85,17 +85,52 @@ async function downloadAudio(remote, localPath, label) {
   }
 }
 
-/// 缓存 → 有道 → 维基词典真人 → Google TTS；都失败返回 null（渲染层降级系统 TTS）
+/// Commons 全文搜索真人录音（兜住大小写变体、En-us-、Lingua Libre 等）
+async function commonsSearchPronunciationURL(text, language) {
+  const accepted = {
+    de: ['de-', 'll-q188 '], en: ['en-us-', 'en-uk-', 'en-au-', 'en-', 'll-q1860 '],
+    fr: ['fr-', 'll-q150 '], es: ['es-', 'll-q1321 ']
+  }[language];
+  if (!accepted) return null;
+  try {
+    const sr = encodeURIComponent(`intitle:"${text}" filetype:audio`);
+    const res = await fetch(`https://commons.wikimedia.org/w/api.php?action=query&format=json&list=search&srnamespace=6&srlimit=8&srsearch=${sr}`);
+    const json = await res.json();
+    const needle = `-${text.toLowerCase()}.`;
+    const hit = (json?.query?.search || []).map(r => r.title).find(t => {
+      const lower = t.toLowerCase();
+      if (!lower.includes(needle)) return false;
+      const name = lower.replace('file:', '');
+      return accepted.some(p => name.startsWith(p) || name.includes(p));
+    });
+    if (!hit) return null;
+    const res2 = await fetch(`https://commons.wikimedia.org/w/api.php?action=query&format=json&prop=imageinfo&iiprop=url&titles=${encodeURIComponent(hit)}`);
+    const j2 = await res2.json();
+    const page = Object.values(j2?.query?.pages || {})[0];
+    const url = page?.imageinfo?.[0]?.url;
+    if (!url) return null;
+    const clean = url.split('?')[0];
+    const filename = clean.split('/').pop();
+    return clean.replace('/commons/', '/commons/transcoded/') + `/${filename}.mp3`;
+  } catch { return null; }
+}
+
+/// 缓存 → 真人源（有道单词/维基词典/Commons 搜索）→ Google TTS → 有道短语合成音；
+/// 都失败返回 null（渲染层降级系统 TTS）
 async function generateAudioFile(text, language) {
   const cached = cachedAudioPath(text, language);
   if (cached) return cached;
   const local = audioFilePath(text, language);
+  const isPhrase = text.includes(' ');
   const youdao = pronunciationURL(text, language);
-  if (youdao && await downloadAudio(youdao, local, text)) return local;
+  if (!isPhrase && youdao && await downloadAudio(youdao, local, text)) return local;
   const commons = await commonsPronunciationURL(text, language);
   if (commons && await downloadAudio(commons, local, text)) return local;
+  const search = await commonsSearchPronunciationURL(text, language);
+  if (search && await downloadAudio(search, local, text)) return local;
   const gtts = googleTTSURL(text, language);
   if (gtts && await downloadAudio(gtts, local, text)) return local;
+  if (isPhrase && youdao && await downloadAudio(youdao, local, text)) return local;
   return null;
 }
 
