@@ -165,6 +165,7 @@ function startEnrichment(word, language) {
     } catch (err) {
       log(`[Analysis] pre-enrich '${word}' failed: ${err.message}`);
       enrichStarted = false;
+      if (S === myState && S.result && !S.enrichments[0]) S.enrichments[0] = { failed: true };   // 停掉加载圈
     }
     if (S === myState) { S.enrichingIndices = S.enrichingIndices.filter(i => i !== 0); pushState(); }
   })();
@@ -207,7 +208,10 @@ function enrichWordsInBackground() {
         if (S !== myState) return;
         S.enrichments[i] = e;
         applyEnrichmentToSaved(i, e);
-      } catch (err) { log(`[Analysis] enrich '${w.word}' failed: ${err.message}`); }
+      } catch (err) {
+        log(`[Analysis] enrich '${w.word}' failed: ${err.message}`);
+        if (S === myState && !S.enrichments[i]) S.enrichments[i] = { failed: true };   // 停掉加载圈
+      }
       S.enrichingIndices = S.enrichingIndices.filter(x => x !== i);
       pushState();
     }

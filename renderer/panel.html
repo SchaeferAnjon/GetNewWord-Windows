@@ -108,11 +108,11 @@ gnw.on('panel:setPin', (v) => {
   pinned = v;
   const b = document.getElementById('pin');
   b.classList.toggle('active', v);
-  b.title = v ? '已钉住：点面板外/Esc 不会关闭' : '钉在桌面上';
+  b.title = v ? '已钉住：点面板外不会关闭（Esc 或 ✕ 可关闭）' : '钉在桌面上';
 });
 gnw.invoke('db:all').then(d => document.documentElement.style.setProperty('--fs', d.settings.fontScale || 1));
 
-window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !pinned) gnw.send('panel:dismiss'); });
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape') gnw.send('panel:dismiss'); });   // Esc 永远可关（钉住只防点外面误关）
 document.getElementById('close').addEventListener('click', () => gnw.send('panel:dismiss'));
 document.getElementById('undo').addEventListener('click', () => gnw.send('panel:undo'));
 document.getElementById('pin').addEventListener('click', function () {
@@ -225,7 +225,7 @@ function wordCardHTML(w, i) {
 
   if (usage) h += `<div class="sec"><div class="section-label">用法</div><div class="usage-box">${esc(usage)}</div></div>`;
 
-  if (enriching && !examples) {
+  if (!S.enrichments[i] && !(colls && colls.length) && !(examples && examples.length)) {
     h += `<div class="enriching"><span class="spinner"></span> 用法 · 例句 · 词根词源 生成中…</div>`;
   }
 
