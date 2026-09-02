@@ -124,7 +124,7 @@ input, textarea, select { font-family: inherit; color: var(--text); }
 .usage-box {
   background: var(--surface); border: 0.5px solid var(--border);
   border-radius: var(--radius-lg); padding: 12px;
-  font-size: calc(13px * var(--fs)); color: var(--text2); line-height: 1.55;
+  font-size: calc(14.5px * var(--fs)); color: var(--text); line-height: 1.6;
 }
 
 .spinner {
