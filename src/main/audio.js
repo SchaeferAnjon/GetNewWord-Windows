@@ -36,35 +36,67 @@ function cachedAudioPath(text, language) {
   return fs.existsSync(p) ? p : null;
 }
 
-/// 下载真人发音并缓存；失败返回 null（短语/冷门词有道会 500）
-async function downloadPronunciation(text, language) {
-  const url = pronunciationURL(text, language);
-  if (!url) return null;
+/// 维基词典真人录音（Wikimedia Commons，母语者；德语覆盖极好）→ mp3 转码地址
+async function commonsPronunciationURL(text, language) {
+  const prefix = { de: 'De', fr: 'Fr', es: 'Es', en: 'En-us' }[language];
+  if (!prefix) return null;
+  try {
+    const title = encodeURIComponent(`File:${prefix}-${text}.ogg`);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 6000);
+    const res = await fetch(`https://commons.wikimedia.org/w/api.php?action=query&format=json&prop=imageinfo&iiprop=url&titles=${title}`, { signal: ctrl.signal });
+    clearTimeout(timer);
+    const json = await res.json();
+    const page = Object.values(json?.query?.pages || {})[0];
+    const url = page?.imageinfo?.[0]?.url;
+    if (!url) return null;
+    const clean = url.split('?')[0];
+    const filename = clean.split('/').pop();
+    return clean.replace('/commons/', '/commons/transcoded/') + `/${filename}.mp3`;
+  } catch { return null; }
+}
+
+/// Google TTS 免费口（全语言在线兜底）
+function googleTTSURL(text, language) {
+  if (!language || language === 'other') return null;
+  const tl = language === 'zh' ? 'zh-CN' : language;
+  return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${tl}&client=tw-ob`;
+}
+
+async function downloadAudio(remote, localPath, label) {
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 8000);
-    const res = await fetch(url, { signal: ctrl.signal });
+    const res = await fetch(remote, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: ctrl.signal });
     clearTimeout(timer);
     const type = res.headers.get('content-type') || '';
     if (!res.ok || !type.includes('audio')) {
-      log(`[Audio] youdao no audio for '${text}' (${res.status})`);
-      return null;
+      log(`[Audio] ${new URL(remote).host} no audio for '${label}' (${res.status})`);
+      return false;
     }
     const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length < 500) return null;
-    const p = audioFilePath(text, language);
-    fs.writeFileSync(p, buf);
-    log(`[Audio] cached '${text}' ${Math.round(buf.length / 1024)}KB`);
-    return p;
+    if (buf.length < 500) return false;
+    fs.writeFileSync(localPath, buf);
+    log(`[Audio] cached '${label}' ${Math.round(buf.length / 1024)}KB ← ${new URL(remote).host}`);
+    return true;
   } catch (e) {
-    log(`[Audio] download failed '${text}': ${e.message}`);
-    return null;
+    log(`[Audio] download failed '${label}': ${e.message}`);
+    return false;
   }
 }
 
-/// 缓存 → 下载；返回本地路径或 null（null 时渲染层降级到系统 TTS）
+/// 缓存 → 有道 → 维基词典真人 → Google TTS；都失败返回 null（渲染层降级系统 TTS）
 async function generateAudioFile(text, language) {
-  return cachedAudioPath(text, language) || await downloadPronunciation(text, language);
+  const cached = cachedAudioPath(text, language);
+  if (cached) return cached;
+  const local = audioFilePath(text, language);
+  const youdao = pronunciationURL(text, language);
+  if (youdao && await downloadAudio(youdao, local, text)) return local;
+  const commons = await commonsPronunciationURL(text, language);
+  if (commons && await downloadAudio(commons, local, text)) return local;
+  const gtts = googleTTSURL(text, language);
+  if (gtts && await downloadAudio(gtts, local, text)) return local;
+  return null;
 }
 
 /// 启动时给没有发音文件的旧单词补下载
