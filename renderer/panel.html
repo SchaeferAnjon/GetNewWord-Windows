@@ -197,6 +197,7 @@ function wordCardHTML(w, i) {
       ${!S.autoSaved && S.mode === 'lookup' ? `<input type="checkbox" class="checkbox sel" data-i="${i}" ${S.selectedIndices.includes(i) ? 'checked' : ''}>` : ''}
       <span class="w">${esc(w.word)}</span>
       ${w.phonetic ? `<span class="ph">/${esc(w.phonetic)}/</span>` : ''}
+      <button class="hbtn speak-word" data-i="${i}" title="朗读">🔊</button>
     </div>
     <div class="chips" style="margin-top:8px">
       ${diffChip(w.difficulty)}
@@ -274,6 +275,10 @@ function categoryRowHTML(forWords, i, suggested) {
 }
 
 function bindContentEvents(el) {
+  el.querySelectorAll('.speak-word').forEach(b => b.addEventListener('click', () => {
+    const w = S.result?.words?.[+b.dataset.i];
+    if (w) speakWord(w.word, w.language);
+  }));
   el.querySelectorAll('.rm-word').forEach(b => b.addEventListener('click', () => gnw.send('panel:removeWord', +b.dataset.i)));
   el.querySelectorAll('.rm-snip').forEach(b => b.addEventListener('click', () => gnw.send('panel:removeSnippet', +b.dataset.i)));
   el.querySelectorAll('.sel').forEach(c => c.addEventListener('change', () => gnw.send('panel:toggleSelection', +c.dataset.i)));
