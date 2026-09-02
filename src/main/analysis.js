@@ -154,25 +154,27 @@ function startEnrichment(word, language) {
   (async () => {
     try {
       const e = await zhipu.enrichWord(word, language);
-      if (S !== myState) return;
-      const first = S.result?.words?.[0];
-      if (S.result && (!first || first.word.toLowerCase() !== word.toLowerCase())) {
+      // 面板可能已关（已保存态）：继续用快照写回；未保存关闭时 savedWordIds 为空、写回自动落空
+      const first = myState.result?.words?.[0];
+      if (myState.result && (!first || first.word.toLowerCase() !== word.toLowerCase())) {
         log(`[Analysis] pre-enrich '${word}' 丢弃（实际词头 '${first?.word || '-'}'）`);
       } else {
-        S.enrichments[0] = e;
-        applyEnrichmentToSaved(0, e);
+        myState.enrichments[0] = e;
+        applyEnrichmentToSaved(myState, 0, e);
+        if (myState.autoSaved) scheduleAnkiSync();
       }
     } catch (err) {
       log(`[Analysis] pre-enrich '${word}' failed: ${err.message}`);
       enrichStarted = false;
-      if (S === myState && S.result && !S.enrichments[0]) S.enrichments[0] = { failed: true };   // 停掉加载圈
+      if (myState.result && !myState.enrichments[0]) myState.enrichments[0] = { failed: true };   // 停掉加载圈
     }
-    if (S === myState) { S.enrichingIndices = S.enrichingIndices.filter(i => i !== 0); pushState(); }
+    myState.enrichingIndices = myState.enrichingIndices.filter(i => i !== 0);
+    if (S === myState) pushState();
   })();
 }
 
-function applyEnrichmentToSaved(i, e) {
-  const id = S.savedWordIds[i];
+function applyEnrichmentToSaved(state, i, e) {
+  const id = state.savedWordIds[i];
   if (!id) return;
   const patch = {};
   if (e.usage) patch.analysisNote = e.usage;
@@ -187,7 +189,7 @@ function enrichWordsInBackground() {
   const words = S.result?.words || [];
   if (!words.length) return;
   if (enrichStarted) {
-    if (S.enrichments[0]) applyEnrichmentToSaved(0, S.enrichments[0]);
+    if (S.enrichments[0]) applyEnrichmentToSaved(S, 0, S.enrichments[0]);
     if (words.length === 1) {
       if (S.autoSaved && !S.enrichingIndices.length) scheduleAnkiSync();
       // 补全还在跑：跑完由 startEnrichment 收尾，这里挂一个延迟同步兜底
@@ -201,21 +203,21 @@ function enrichWordsInBackground() {
   (async () => {
     for (let i = 0; i < words.length; i++) {
       if (enrichStarted && i === 0) continue;
-      if (S !== myState) return;
+      // 未保存且面板已关 → 取消；已保存 → 面板关了也跑完写回
+      if (S !== myState && !myState.autoSaved) return;
       const w = words[i];
       try {
         const e = await zhipu.enrichWord(w.word, w.language, w.meaning, w.contextSentence);
-        if (S !== myState) return;
-        S.enrichments[i] = e;
-        applyEnrichmentToSaved(i, e);
+        myState.enrichments[i] = e;
+        applyEnrichmentToSaved(myState, i, e);
       } catch (err) {
         log(`[Analysis] enrich '${w.word}' failed: ${err.message}`);
-        if (S === myState && !S.enrichments[i]) S.enrichments[i] = { failed: true };   // 停掉加载圈
+        if (!myState.enrichments[i]) myState.enrichments[i] = { failed: true };   // 停掉加载圈
       }
-      S.enrichingIndices = S.enrichingIndices.filter(x => x !== i);
-      pushState();
+      myState.enrichingIndices = myState.enrichingIndices.filter(x => x !== i);
+      if (S === myState) pushState();
     }
-    if (S === myState && S.autoSaved) scheduleAnkiSync();
+    if (myState.autoSaved) scheduleAnkiSync();
   })();
 }
 
