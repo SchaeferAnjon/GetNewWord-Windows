@@ -153,7 +153,7 @@ ${categoryTree || '（空）'}
 请完成以下任务：
 1. 查词时只分析**红框内**的那个词/短语（不要解释红框外的词），红框外只作语境。
 2. 对每个单词提供：
-   - 单词原文（词典形式，如动词原形、名词单数；**不要带冠词**——德语名词写 "Vorfahrt" 而不是 "die Vorfahrt"，冠词放进 grammar）
+   - 单词原文（词典形式，如动词原形、名词单数；**不要带冠词**——德语名词写 "Vorfahrt" 而不是 "die Vorfahrt"，冠词放进 grammar）。红框里是**短语**时，word 必须是**完整短语**的词典形式（保留全部单词，只把中心词还原原形，如 "Traffic confluences" → "traffic confluence"），**绝不能只取中心词**
    - 音标（国际音标）
    - 语言（de=德语, en=英语, fr=法语等）
    - meaning：该词**常见的 2–4 个义项**，**按词性分组**：每组以词性缩写开头（v. / n. / adj. / adv. / prep.），组内义项用"；"分隔，多个词性之间用 " ｜ " 分隔，如 "v. 规定；开处方 ｜ n. 处方"；只有一个词性也要标前缀（如 "adj. 无阻碍的；畅通的"）。当前语境的词性组放最前
@@ -221,7 +221,7 @@ async function analyzeScreenshot(imageDataURL, categoryTree) {
 /// 极速识词（~15 token 输出，2 秒级）：红框是知识点时返回空词头
 async function quickExtract(smallImageDataURL) {
   const prompt = `图中红框是用户圈选的目标。先判断类型，再只返回 JSON：
-- 红框内是一个单词或短语（大致 ≤5 个词）→ {"word": "词典形式（名词不带冠词）", "language": "en/de/fr/es/ja/ko/zh"}
+- 红框内是一个单词或短语（大致 ≤5 个词）→ {"word": "词典形式（名词不带冠词；短语保留完整，只把中心词还原原形，如 "Traffic confluences" → "traffic confluence"，不要只取中心词）", "language": "en/de/fr/es/ja/ko/zh"}
 - 红框内是一整句话/一段话/一道题（知识点）→ {"word": "", "language": ""}`;
   const message = {
     role: 'user',
