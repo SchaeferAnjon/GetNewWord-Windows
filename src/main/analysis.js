@@ -166,7 +166,7 @@ function matchCategory(rawName, forWords) {
 
 async function speak(text, language) {
   const p = await audio.generateAudioFile(text, language);
-  windows.panelSend('play-audio', p ? { path: p } : { tts: { text, language } });
+  windows.panelSend('play-audio', p ? { path: p } : { tts: { text, language } });   // path 由渲染层换 data URL
 }
 
 // ---------- 补全 ----------

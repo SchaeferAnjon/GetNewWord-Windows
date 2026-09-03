@@ -3,7 +3,16 @@
 macOS 版 GetNewWord 的 Windows 移植（Electron），前后端逻辑与 macOS 版一致：
 截图取词 → AI 释义（智谱 GLM-5.3-Flash / DeepSeek）→ 词库 → Anki 卡片自动同步。
 
-## 在 Windows 上运行
+## 直接下载成品（推荐）
+
+[Releases](https://github.com/SchaeferAnjon/GetNewWord-Windows/releases) 页面下载：
+- `GetNewWord-Setup-…-win-x64.exe` — 一键安装
+- `GetNewWord-Portable-…-win-x64.exe` — 免安装，双击即用
+
+首次运行如遇 SmartScreen 提示，点「更多信息 → 仍要运行」（程序未签名）。
+装好后：设置 ⚙️ → API 填 Key；开着 Anki 启动会自动把词库从 Anki 拉回来；发音联网按需下载并缓存本地。
+
+## 从源码运行
 
 1. 安装 [Node.js LTS](https://nodejs.org/)（≥ 20）
 2. 拿到本目录（git clone 或直接拷贝 `windows/` 文件夹）

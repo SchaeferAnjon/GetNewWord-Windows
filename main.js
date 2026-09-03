@@ -50,6 +50,16 @@ function registerFileProtocol() {
 
 const fileURL = (p) => p ? 'gnwfile://' + encodeURIComponent(p).replace(/%2F/g, '/').replace(/%3A/g, ':').replace(/%5C/g, '/') : null;
 
+// data URL：媒体播放最稳的通道（自定义协议在部分 Windows 环境下 <audio>/<img> 不认）
+const MIME = { '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.png': 'image/png', '.jpg': 'image/jpeg', '.aiff': 'audio/aiff' };
+function dataURL(p) {
+  try {
+    const ext = path.extname(p).toLowerCase();
+    const data = fs.readFileSync(p);
+    return `data:${MIME[ext] || 'application/octet-stream'};base64,${data.toString('base64')}`;
+  } catch { return null; }
+}
+
 // ---------- 窗口 ----------
 
 function createMainWindow() {
@@ -225,9 +235,9 @@ function registerIPC() {
   // --- 发音 ---
   ipcMain.handle('audio:path', async (_e, text, language) => {
     const p = await audio.generateAudioFile(text, language);
-    return p ? fileURL(p) : null;
+    return p ? dataURL(p) : null;
   });
-  ipcMain.handle('file:url', (_e, p) => fileURL(p));
+  ipcMain.handle('file:url', (_e, p) => dataURL(p));
 
   // --- AI ---
   ipcMain.handle('ai:validateKey', (_e, key, provider) => zhipu.validateKey(key, provider));
