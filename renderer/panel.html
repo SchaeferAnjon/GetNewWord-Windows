@@ -225,7 +225,7 @@ function wordCardHTML(w, i) {
     h += `<div class="sec"><div class="section-label">语境</div>
       <div class="quote-block">
         <div class="ctx-sentence">${hlHTML(w.word, w.contextSentence)}</div>
-        ${w.contextTranslation ? `<div class="ctx-tr">${emphasizeMeaningHTML(w.contextMeaning, w.contextTranslation)}</div>` : ''}
+        ${w.contextTranslation ? `<div class="ctx-tr">${emphasizeTranslationHTML(w.translationKeyword, w.contextMeaning, w.contextTranslation)}</div>` : ''}
       </div></div>`;
   }
 

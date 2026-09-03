@@ -43,6 +43,16 @@ function emphasizeMeaningHTML(contextMeaning, meaning) {
   return m;
 }
 
+/// 译文高亮：优先模型标注的 translationKeyword（逐字摘抄、必命中）；无效再退回义项匹配
+function emphasizeTranslationHTML(keyword, sense, text) {
+  const k = (keyword || '').trim();
+  if (k && (text || '').includes(k)) {
+    const m = esc(text), kEsc = esc(k);
+    return m.replace(kEsc, `<span class="kw">${kEsc}</span>`);
+  }
+  return emphasizeMeaningHTML(sense, text);
+}
+
 /// "外语原句 —— 中文" 拆两行
 function exampleHTML(line, word) {
   const parts = line.split('——');

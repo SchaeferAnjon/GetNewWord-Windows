@@ -160,6 +160,7 @@ ${categoryTree || '（空）'}
    - contextMeaning：当前语境对应的那个义项（**不带词性前缀**，必须与 meaning 里该义项的写法**逐字一致**，用于高亮）
    - contextSentence：红框所在的**完整原文句子**（从红框外的上下文里补全，不要截断）
    - 该句子的中文翻译（目标词在译文中的对应译法**尽量与 contextMeaning 措辞一致**，用于译文高亮）
+   - translationKeyword：目标词在译文中对应的那几个字，**逐字摘抄自译文**（如译文"这包括在…"里对应 involve 的是"包括"）；译文中没有明确对应就给 ""
    - grammar：**德语必填**——名词给「冠词 + 单数, 复数」如 "der Fahrer, die Fahrer"；动词给「可分/不可分 · 第三人称现在时 · 过去式 · 过去分词（助动词）」如 "trennbar · hält an · hielt an · hat angehalten"；形容词给比较级/最高级。英语等其他语言：不规则变化才填，否则 ""。
    - 难度等级（a1/a2/b1/b2/c1/c2）
 3. snippets：仅当第一步判定为"记知识"时填写（交通规则、健身要点、医学常识、题目要点等），整理成 1 条，此时 words 必须是 []。**words 和 snippets 永远二选一，绝不能同时给**——记知识时段落里的生词也不要立词条。
@@ -176,6 +177,7 @@ ${categoryTree || '（空）'}
       "contextMeaning": "义项1",
       "contextSentence": "原文句子",
       "contextTranslation": "中文翻译",
+      "translationKeyword": "译文中对应目标词的那几个字",
       "grammar": "der Fahrer, die Fahrer",
       "difficulty": "b1",
       "tags": [],

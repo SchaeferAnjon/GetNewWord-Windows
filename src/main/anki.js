@@ -84,7 +84,9 @@ function hl(text, word) {
 }
 
 /// 中文译文里高亮语境义项；整串没命中就拆子义项
-function hlSense(text, sense) {
+function hlSense(text, sense, keyword) {
+  const k = (keyword || '').trim();
+  if (k && text && text.includes(k)) return text.replace(k, `<span class="kw">${k}</span>`);
   const s = (sense || '').trim();
   if (!s || !text) return text || '';
   if (text.includes(s)) return text.replace(s, `<span class="kw">${s}</span>`);
@@ -236,14 +238,14 @@ async function syncWord(w) {
 
   const contexts = w.contexts || [];
   const contextHTML = contexts.map(c => `<div class="ctx">${hl(c.sentence, w.word)}</div>`).join('');
-  const translationHTML = contexts.map(c => `<div class="ctx-tr">${hlSense(c.translation, w.contextMeaning)}</div>`).join('');
+  const translationHTML = contexts.map(c => `<div class="ctx-tr">${hlSense(c.translation, w.contextMeaning, w.translationKeyword)}</div>`).join('');
 
   const fields = {
     Front: w.word,
     Back: emphasizedMeaningHTML(w),
     Phonetic: w.phonetic || '',
     Context: contextHTML || hl(w.contextSentence, w.word),
-    ContextTranslation: translationHTML || hlSense(w.contextTranslation, w.contextMeaning) || '',
+    ContextTranslation: translationHTML || hlSense(w.contextTranslation, w.contextMeaning, w.translationKeyword) || '',
     Analysis: composeAnalysisHTML(w),
     Screenshot: '',
     Language: db.languageDisplayName(w.language),

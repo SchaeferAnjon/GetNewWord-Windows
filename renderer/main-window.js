@@ -367,7 +367,7 @@ function detailHTML(w) {
     contexts.forEach((c, i) => {
       h += `<div class="quote-block">
         <div class="d-ctx">${hlHTML(w.word, c.sentence)}</div>
-        ${c.translation ? `<div class="d-ctx-tr">${emphasizeMeaningHTML(w.contextMeaning, c.translation)}</div>` : ''}
+        ${c.translation ? `<div class="d-ctx-tr">${emphasizeTranslationHTML(w.translationKeyword, w.contextMeaning, c.translation)}</div>` : ''}
         <div class="d-ctx-meta">${contexts.length > 1 ? `#${i + 1} · ` : ''}${fmtDate(c.createdAt, true)}</div>
       </div>`;
       if (contexts.length > 1 && c.screenshotPath) h += `<div class="d-shot" data-shot="${esc(c.screenshotPath)}"></div>`;

@@ -228,6 +228,7 @@ function saveWord(analysis, screenshotPath, categoryId) {
     language, meaning: analysis.meaning || '', contextMeaning: analysis.contextMeaning || '',
     contextSentence: analysis.contextSentence || '', contextTranslation: analysis.contextTranslation || '',
     analysisNote: analysis.analysisNote || '', grammar: analysis.grammar || '',
+    translationKeyword: analysis.translationKeyword || '',
     collocationsText: '', examplesText: (analysis.examples || []).join('\n'),
     etymology: analysis.etymology || '', audioPath: null, screenshotPath,
     difficulty: matchDifficulty(analysis.difficulty), tags: [],
