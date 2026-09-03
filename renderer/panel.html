@@ -144,7 +144,7 @@ function renderHeader() {
   const sub = document.getElementById('h-sub');
   if (!S.result) {
     t.innerHTML = `<span class="spinner"></span> 识别中`;
-    sub.textContent = S.quickWord ? '释义生成中…' : '正在识别选区…';
+    sub.textContent = S.cachedHit ? '词库直出 · 正在核对语境…' : (S.quickWord ? '释义生成中…' : '正在识别选区…');
   } else if (S.autoSaved) {
     const wc = liveWords().length, sc = liveSnippets().length;
     t.innerHTML = `<span style="color:var(--ok)">✓</span> 已保存`;
@@ -164,7 +164,7 @@ function renderContent() {
   let html = '';
 
   if (!S.result) {
-    html = skeletonHTML();
+    html = S.cachedHit ? cachedCardHTML(S.cachedHit) : skeletonHTML();
   } else {
     for (const [w, i] of liveWords()) html += wordCardHTML(w, i);
     const snips = liveSnippets();
@@ -179,6 +179,33 @@ function renderContent() {
   }
   el.innerHTML = html;
   bindContentEvents(el);
+}
+
+// 词库直出卡：快速识词命中已存词条，秒出完整内容
+function cachedCardHTML(w) {
+  const e = S.enrichments[0] || {};
+  let h = `<div class="card"><div>
+    <div class="word-line"><span class="w">${esc(w.word)}</span>
+      ${w.phonetic ? `<span class="ph">/${esc(w.phonetic)}/</span>` : ''}
+      <button class="hbtn speak-cached" title="朗读">🔊</button></div>
+    <div class="chips" style="margin-top:8px">${diffChip(w.difficulty)}<span class="chip sans">${esc(langName(w.language))}</span>
+      ${w.lookupCount > 1 ? `<span class="chip accent">×${w.lookupCount}</span>` : ''}</div>
+    ${w.grammar ? `<div class="grammar" style="margin-top:6px">${esc(w.grammar)}</div>` : ''}
+    <div class="dup-note" style="margin-top:6px">⚡ 词库里已有这个词，直接展示；正在核对本次语境是否新增</div>
+  </div><hr class="hairline">`;
+  h += `<div class="sec"><div class="section-label">释义</div><div class="meaning">${emphasizeMeaningHTML(w.contextMeaning, w.meaning)}</div></div>`;
+  if (w.contextSentence) {
+    h += `<div class="sec"><div class="section-label">语境</div><div class="quote-block">
+      <div class="ctx-sentence">${hlHTML(w.word, w.contextSentence)}</div>
+      ${w.contextTranslation ? `<div class="ctx-tr">${emphasizeTranslationHTML(w.translationKeyword, w.contextMeaning, w.contextTranslation)}</div>` : ''}
+    </div></div>`;
+  }
+  if (e.usage) h += `<div class="sec"><div class="section-label">用法</div><div class="usage-box">${esc(e.usage)}</div></div>`;
+  if (e.collocations?.length) h += `<div class="sec"><div class="section-label">搭配</div>${e.collocations.map(c => exampleHTML(c, w.word)).join('')}</div>`;
+  if (e.examples?.length) h += `<div class="sec"><div class="section-label">例句</div>${e.examples.map(x => exampleHTML(x, w.word)).join('')}</div>`;
+  if (e.etymology) h += `<div class="sec"><div class="section-label">词根词源</div><div class="ety">${esc(e.etymology)}</div></div>`;
+  h += `</div>`;
+  return h;
 }
 
 function skeletonHTML() {
@@ -212,6 +239,7 @@ function wordCardHTML(w, i) {
     <div class="chips" style="margin-top:8px">
       ${diffChip(w.difficulty)}
       <span class="chip sans">${esc(langName(w.language))}</span>
+      ${(S.lookupCounts?.[i] || 0) > 1 ? `<span class="chip accent">×${S.lookupCounts[i]}</span>` : ''}
       ${S.autoSaved ? `<button class="trash-btn rm-word" data-i="${i}" title="单项移除：只把这个词从本次保存中撤掉">🗑</button>` : ''}
     </div>
     ${w.grammar ? `<div class="grammar" style="margin-top:6px">${esc(w.grammar)}</div>` : ''}
@@ -285,6 +313,9 @@ function categoryRowHTML(forWords, i, suggested) {
 }
 
 function bindContentEvents(el) {
+  el.querySelectorAll('.speak-cached').forEach(b => b.addEventListener('click', () => {
+    if (S.cachedHit) speakWord(S.cachedHit.word, S.cachedHit.language);
+  }));
   el.querySelectorAll('.speak-word').forEach(b => b.addEventListener('click', () => {
     const w = S.result?.words?.[+b.dataset.i];
     if (w) speakWord(w.word, w.language);

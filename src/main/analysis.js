@@ -31,6 +31,7 @@ function freshState(mode) {
     savedWordIds: {}, savedSnippetIds: {},
     chosenWordCategory: {}, chosenSnippetCategory: {},
     enrichments: {}, enrichingIndices: [],
+    cachedHit: null, lookupCounts: {},
     categories: { forWords: [], forSnippets: [], byId: {} }
   };
 }
@@ -79,7 +80,32 @@ async function trigger(mode = 'capture') {
       log(`[Analysis] quick word '${q.word}' (${q.language})`);
       pushState();
       if (db.getSetting('autoSpeak')) speak(q.word, db.matchLanguage(q.language));
-      startEnrichment(q.word, q.language);
+      // 词库命中：直出已存词条（含现成补全，不再请求）；主分析继续核对语境
+      const lang = db.matchLanguage(q.language);
+      const key = `${q.word.trim().toLowerCase()}|${lang}`;
+      const hit = db.words().find(w => `${(w.word || '').trim().toLowerCase()}|${w.language}` === key);
+      if (hit) {
+        const lastCtx = hit.contexts?.[hit.contexts.length - 1];
+        S.cachedHit = {
+          word: hit.word, phonetic: hit.phonetic, language: hit.language, meaning: hit.meaning,
+          contextMeaning: hit.contextMeaning, translationKeyword: hit.translationKeyword,
+          contextSentence: lastCtx?.sentence || hit.contextSentence,
+          contextTranslation: lastCtx?.translation || hit.contextTranslation,
+          grammar: hit.grammar, difficulty: hit.difficulty,
+          lookupCount: Math.max(hit.lookupCount || 1, (hit.contexts || []).length, 1)
+        };
+        enrichStarted = true;
+        S.enrichments[0] = {
+          usage: hit.analysisNote || null,
+          collocations: hit.collocationsText ? hit.collocationsText.split('\n') : null,
+          examples: hit.examplesText ? hit.examplesText.split('\n') : null,
+          etymology: hit.etymology || null
+        };
+        log(`[Analysis] cache hit '${hit.word}' (x${hit.lookupCount || 1})`);
+        pushState();
+      } else {
+        startEnrichment(q.word, q.language);
+      }
     } catch (e) { log(`[Analysis] quick failed: ${e.message}`); }
   })();
 
@@ -242,6 +268,7 @@ function autoSave(pngPath) {
       const { entry, skippedAsDuplicate } = db.saveWord(w, pngPath, catId);
       if (skippedAsDuplicate) S.skippedAsDuplicate.push(i);
       S.savedWordIds[i] = entry.id;
+      S.lookupCounts[i] = Math.max(entry.lookupCount || 1, (entry.contexts || []).length, 1);
       if (!S.chosenWordCategory[i] && entry.categoryId) S.chosenWordCategory[i] = entry.categoryId;
       // 预下载发音
       audio.generateAudioFile(entry.word, entry.language).then(p => { if (p) db.updateWord(entry.id, { audioPath: p }); });

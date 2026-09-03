@@ -198,6 +198,7 @@ function saveWord(analysis, screenshotPath, categoryId) {
     if ((existing.contexts || []).some(c => isSimilarSentence(c.sentence, analysis.contextSentence))) {
       log(`[Analysis] context for '${existing.word}' looks like an existing one, skipped`);
       if (!existing.grammar && analysis.grammar) existing.grammar = analysis.grammar;
+      existing.lookupCount = Math.max((existing.lookupCount || 1) + 1, (existing.contexts || []).length);
       save();
       return { entry: existing, mergedContext: false, skippedAsDuplicate: true };
     }
@@ -210,6 +211,7 @@ function saveWord(analysis, screenshotPath, categoryId) {
     if (!existing.grammar && analysis.grammar) existing.grammar = analysis.grammar;
     if (!existing.etymology && analysis.etymology) existing.etymology = analysis.etymology;
     if (!existing.examplesText && analysis.examples?.length) existing.examplesText = analysis.examples.join('\n');
+    existing.lookupCount = Math.max((existing.lookupCount || 1) + 1, (existing.contexts || []).length);
     existing.syncStatus = 'not_synced';
     save();
     log(`[Analysis] merged context into existing word '${existing.word}' (now ${existing.contexts.length} contexts)`);
@@ -232,7 +234,7 @@ function saveWord(analysis, screenshotPath, categoryId) {
     collocationsText: '', examplesText: (analysis.examples || []).join('\n'),
     etymology: analysis.etymology || '', audioPath: null, screenshotPath,
     difficulty: matchDifficulty(analysis.difficulty), tags: [],
-    createdAt: now, reviewCount: 0, ankiNoteId: null, syncStatus: 'not_synced', isArchived: false,
+    createdAt: now, reviewCount: 0, lookupCount: 1, ankiNoteId: null, syncStatus: 'not_synced', isArchived: false,
     categoryId: catId,
     contexts: [{
       id: uuid(), sentence: analysis.contextSentence, translation: analysis.contextTranslation,
@@ -333,7 +335,7 @@ function insertRestoredWord(o) {
     collocationsText: o.collocationsText || '', examplesText: o.examplesText || '',
     etymology: o.etymology || '', audioPath: null, screenshotPath: null,
     difficulty: ['a1', 'a2', 'b1', 'b2', 'c1', 'c2'].includes(o.difficulty) ? o.difficulty : 'b1',
-    tags: [], createdAt: now, reviewCount: 0, ankiNoteId: o.ankiNoteId || null,
+    tags: [], createdAt: now, reviewCount: 0, lookupCount: 1, ankiNoteId: o.ankiNoteId || null,
     syncStatus: 'synced', isArchived: false, categoryId: o.categoryId || null,
     contexts: (o.contexts || []).map(c => ({ id: uuid(), sentence: c.sentence, translation: c.translation || '', note: '', screenshotPath: null, createdAt: now }))
   });
