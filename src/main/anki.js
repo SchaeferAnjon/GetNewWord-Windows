@@ -139,13 +139,13 @@ const CARD_CSS = `
 .ctxbox { border-left: 2.5px solid rgba(94,106,210,.7); padding: 2px 0 2px 12px; margin: 6px 0; }
 .ctx { font-style: italic; margin: 4px 0; }
 .ctx-tr, .zh { font-style: normal; font-size: 14px; color: #5F636C; margin-top: 1px; }
-.usage { background: #F4F4F6; border: .5px solid rgba(0,0,0,.09); border-radius: 10px; padding: 12px; font-size: 14px; color: #3D414A; }
+.usage { font-size: 15px; color: inherit; line-height: 1.6; }
 .sec { font-size: 15px; }
 .kw { color: #5E6AD2; font-weight: 700; }
 img { max-width: 100%; border-radius: 8px; margin-top: 8px; }
 hr { border: none; border-top: .5px solid rgba(0,0,0,.12); margin: 14px 0; }
 .nightMode .card, .night_mode .card { color: #EDEDEF; background: #161A1E; }
-.nightMode .usage, .night_mode .usage { background: #1C1D20; border-color: rgba(255,255,255,.08); color: #C6CAD2; }
+.nightMode .usage, .night_mode .usage { color: inherit; }
 `;
 
 async function modelNames() { return send('modelNames'); }
