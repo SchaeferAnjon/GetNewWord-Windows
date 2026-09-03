@@ -116,9 +116,17 @@ function finish(r) {
   const octx = out.getContext('2d');
   octx.drawImage(img, cx, cy, cw, ch, 0, 0, out.width, out.height);
   const inset = 3 * devicePixelRatio * kx;
+  const bx = sel.x - cx - inset, by = sel.y - cy - inset;
+  const bw = sel.w + inset * 2, bh = sel.h + inset * 2;
+  // 框外轻微压暗：给视觉定位弱的模型（DeepSeek）更强的目标信号
+  octx.fillStyle = 'rgba(0,0,0,0.12)';
+  octx.fillRect(0, 0, out.width, Math.max(0, by));
+  octx.fillRect(0, by + bh, out.width, Math.max(0, out.height - by - bh));
+  octx.fillRect(0, by, Math.max(0, bx), bh);
+  octx.fillRect(bx + bw, by, Math.max(0, out.width - bx - bw), bh);
   octx.strokeStyle = 'rgba(255,26,26,1)';
-  octx.lineWidth = Math.max(2, 2 * kx * devicePixelRatio);
-  octx.strokeRect(sel.x - cx - inset, sel.y - cy - inset, sel.w + inset * 2, sel.h + inset * 2);
+  octx.lineWidth = Math.max(4, 3 * kx * devicePixelRatio);
+  octx.strokeRect(bx, by, bw, bh);
 
   const scaled = (maxDim, quality) => {
     const k = Math.min(1, maxDim / Math.max(out.width, out.height));
