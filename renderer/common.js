@@ -27,14 +27,20 @@ function hlHTML(word, sentence) {
   } catch { return escaped; }
 }
 
-/// 释义里强调当前语境义项
+/// 释义/译文里强调当前语境义项：整串优先；没命中就拆子义项（"包括，涉及" → 包括 / 涉及）
 function emphasizeMeaningHTML(contextMeaning, meaning) {
-  const m = esc(meaning);
+  let m = esc(meaning);
   const cm = (contextMeaning || '').trim();
   if (!cm) return m;
   const cmEsc = esc(cm);
-  if (!m.includes(cmEsc)) return m;
-  return m.replace(cmEsc, `<span class="kw">${cmEsc}</span>`);
+  if (m.includes(cmEsc)) return m.replace(cmEsc, `<span class="kw">${cmEsc}</span>`);
+  for (const p of cm.split(/[，,、；;／/ ]+/)) {
+    const t = esc(p.trim());
+    if (t && m.includes(t) && !m.includes(`<span class="kw">${t}`)) {
+      m = m.replace(t, `<span class="kw">${t}</span>`);
+    }
+  }
+  return m;
 }
 
 /// "外语原句 —— 中文" 拆两行

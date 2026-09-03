@@ -83,11 +83,19 @@ function hl(text, word) {
   } catch { return text; }
 }
 
-/// 中文译文里高亮语境义项
+/// 中文译文里高亮语境义项；整串没命中就拆子义项
 function hlSense(text, sense) {
   const s = (sense || '').trim();
-  if (!s || !text || !text.includes(s)) return text || '';
-  return text.replace(s, `<span class="kw">${s}</span>`);
+  if (!s || !text) return text || '';
+  if (text.includes(s)) return text.replace(s, `<span class="kw">${s}</span>`);
+  let out = text;
+  for (const p of s.split(/[，,、；;／/ ]+/)) {
+    const t = p.trim();
+    if (t && out.includes(t) && !out.includes(`<span class="kw">${t}`)) {
+      out = out.replace(t, `<span class="kw">${t}</span>`);
+    }
+  }
+  return out;
 }
 
 /// Back 字段：整个义项列表，当前语境义项加粗标色
