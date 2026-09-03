@@ -45,6 +45,7 @@ async function captureRegion() {
       const win = new BrowserWindow({
         x: display.bounds.x, y: display.bounds.y,
         width: display.bounds.width, height: display.bounds.height,
+        show: false,
         frame: false, transparent: false, backgroundColor: '#000000',
         alwaysOnTop: true, skipTaskbar: true, resizable: false, movable: false,
         enableLargerThanScreen: true, hasShadow: false, fullscreenable: false,
@@ -57,7 +58,6 @@ async function captureRegion() {
           imageDataURL: source.thumbnail.toDataURL(),
           quality: 0.9
         });
-        win.focus();
       });
       overlays.push(win);
     });
@@ -92,6 +92,14 @@ function finish(result) {
 }
 
 function registerIPC() {
+  ipcMain.on('overlay:ready', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win || !overlays.includes(win) || win.isDestroyed()) return;
+    // Do not expose the black BrowserWindow background while the screenshot is
+    // still decoding. The renderer sends this only after its first full draw.
+    win.show();
+    win.focus();
+  });
   ipcMain.on('overlay:done', (_e, result) => finish(result));
   ipcMain.on('overlay:cancel', () => finish(null));
 }

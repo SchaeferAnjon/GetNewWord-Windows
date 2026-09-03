@@ -21,7 +21,13 @@ let start = null, cur = null;
 
 gnw.on('overlay:init', ({ imageDataURL }) => {
   img = new Image();
-  img.onload = () => { resize(); draw(); };
+  img.onload = () => {
+    resize();
+    draw();
+    // The native window starts hidden to avoid flashing its black background.
+    // Reveal it only after this canvas contains the captured screen.
+    gnw.send('overlay:ready');
+  };
   img.src = imageDataURL;
 });
 
