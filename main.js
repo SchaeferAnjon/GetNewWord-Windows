@@ -12,6 +12,7 @@ const audio = require('./src/main/audio');
 const capture = require('./src/main/capture');
 const analysis = require('./src/main/analysis');
 const { log } = require('./src/main/applog');
+const { PANEL_WIDTH, boundsNearCursor, boundsInsideWorkArea } = require('./src/main/panel-bounds');
 
 // 本机（macOS）开发测试时隔离数据目录：APFS 大小写不敏感，默认的 "getnewword"
 // 会撞上 Mac 版的 "GetNewWord" 数据目录。Windows 上保持默认。
@@ -69,7 +70,8 @@ function createMainWindow() {
 
 function createPanelWindow() {
   panelWindow = new BrowserWindow({
-    width: 544, height: 700, show: false, frame: false, transparent: true,
+    width: PANEL_WIDTH, height: 700, minWidth: 320,
+    show: false, frame: false, transparent: true,
     alwaysOnTop: true, skipTaskbar: true, resizable: false, hasShadow: false,
     webPreferences: { preload: PRELOAD }
   });
@@ -82,20 +84,24 @@ function createPanelWindow() {
 }
 
 function showPanel() {
-  // 钉住时：新一轮取词沿用原位置、保持钉住；未钉住才回到鼠标附近
-  if (!panelPinned) {
-    const cursor = screen.getCursorScreenPoint();
+  const cursor = screen.getCursorScreenPoint();
+  let bounds;
+  if (panelPinned) {
+    // 保留钉住位置，但在显示器/DPI 变化后把整个面板拉回可见区域，
+    // 并恢复完整宽度，避免只剩下右侧一条窄栏。
+    const current = panelWindow.getBounds();
+    const display = screen.getDisplayMatching(current);
+    bounds = boundsInsideWorkArea(current, display.workArea);
+  } else {
     const display = screen.getDisplayNearestPoint(cursor);
-    const wa = display.workArea;
-    const height = Math.min(792, wa.height - 60);
-    panelWindow.setBounds({
-      x: Math.round(Math.min(Math.max(cursor.x + 16, wa.x + 10), wa.x + wa.width - 554)),
-      y: Math.round(Math.min(Math.max(cursor.y + 16, wa.y + 10), wa.y + wa.height - height - 10)),
-      width: 544, height
-    });
+    bounds = boundsNearCursor(cursor, display.workArea);
   }
+  panelWindow.setBounds(bounds);
   panelSend('panel:setPin', panelPinned);
   panelWindow.show();
+  // Windows 在混合 DPI 显示器间首次显示透明无边框窗口时可能重算尺寸；
+  // show() 后再次施加同一边界，确保不会以窄条形式出现。
+  if (process.platform === 'win32') panelWindow.setBounds(bounds);
 }
 
 function hidePanel() { panelPinned = false; panelWindow.hide(); }
@@ -351,7 +357,8 @@ function parseCSVLine(line) {
 
 // ---------- 启动 ----------
 
-const gotLock = app.requestSingleInstanceLock();
+// 截图回归使用独立测试进程；生产启动仍只允许一个实例。
+const gotLock = process.env.GNW_SHOT ? true : app.requestSingleInstanceLock();
 if (!gotLock) { app.quit(); }
 else {
   app.on('second-instance', () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } });
