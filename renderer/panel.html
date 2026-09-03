@@ -111,18 +111,22 @@
 let S = null;
 let pinned = false;
 
+function setPinnedState(value) {
+  pinned = Boolean(value);
+  const b = document.getElementById('pin');
+  b.classList.toggle('active', pinned);
+  b.setAttribute('aria-pressed', String(pinned));
+  b.textContent = pinned ? '📍' : '📌';
+  b.title = pinned ? '已钉住：点面板外不会关闭（Esc 或 ✕ 可关闭）' : '钉在桌面上';
+}
+
 gnw.on('panel:state', (state) => { S = state; render(); });
 gnw.on('play-audio', async (msg) => {
   if (msg.path) { const url = await gnw.invoke('file:url', msg.path); if (url) { playAudioURL(url); return; } }
   if (msg.tts) speakTTS(msg.tts.text, msg.tts.language);
 });
 gnw.on('settings-changed', (s) => document.documentElement.style.setProperty('--fs', s.fontScale || 1));
-gnw.on('panel:setPin', (v) => {
-  pinned = v;
-  const b = document.getElementById('pin');
-  b.classList.toggle('active', v);
-  b.title = v ? '已钉住：点面板外不会关闭（Esc 或 ✕ 可关闭）' : '钉在桌面上';
-});
+gnw.on('panel:setPin', setPinnedState);
 gnw.invoke('db:all').then(d => document.documentElement.style.setProperty('--fs', d.settings.fontScale || 1));
 
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape') gnw.send('panel:dismiss'); });   // Esc 永远可关（钉住只防点外面误关）
@@ -138,11 +142,14 @@ document.getElementById('imgsearch').addEventListener('click', () => {
   gnw.send('open-external', `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(query)}`);
 });
 document.getElementById('undo').addEventListener('click', () => gnw.send('panel:undo'));
-document.getElementById('pin').addEventListener('click', function () {
-  pinned = !pinned;
-  this.classList.toggle('active', pinned);
-  this.title = pinned ? '已钉住：点面板外/Esc 不会关闭' : '钉在桌面上';
-  gnw.send('panel:pin', pinned);
+document.getElementById('pin').addEventListener('click', async function () {
+  this.disabled = true;
+  try {
+    const confirmed = await gnw.invoke('panel:setPinned', !pinned);
+    setPinnedState(confirmed);
+  } finally {
+    this.disabled = false;
+  }
 });
 
 function render() {
