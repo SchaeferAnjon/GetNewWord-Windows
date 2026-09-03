@@ -82,6 +82,7 @@
       <h2 id="h-title"></h2>
       <div class="sub" id="h-sub"></div>
     </div>
+    <button class="hbtn" id="imgsearch" title="找图：看看这是什么东西">🖼</button>
     <button class="hbtn" id="pin" title="钉在桌面上">📌</button>
     <button class="hbtn undo-btn" id="undo" style="display:none">↩ 撤销</button>
     <button class="hbtn" id="close" title="关闭">✕</button>
@@ -114,6 +115,10 @@ gnw.invoke('db:all').then(d => document.documentElement.style.setProperty('--fs'
 
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape') gnw.send('panel:dismiss'); });   // Esc 永远可关（钉住只防点外面误关）
 document.getElementById('close').addEventListener('click', () => gnw.send('panel:dismiss'));
+document.getElementById('imgsearch').addEventListener('click', () => {
+  const word = S?.result?.words?.[0]?.word || S?.quickWord?.word;
+  if (word) gnw.send('open-external', `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(word)}`);
+});
 document.getElementById('undo').addEventListener('click', () => gnw.send('panel:undo'));
 document.getElementById('pin').addEventListener('click', function () {
   pinned = !pinned;

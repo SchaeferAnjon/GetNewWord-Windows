@@ -332,6 +332,7 @@ function registerIPC() {
     menu.popup();
   });
 
+  ipcMain.on('open-external', (_e, url) => { if (/^https:\/\//.test(url)) shell.openExternal(url); });
   ipcMain.on('window:showMain', () => { mainWindow.show(); mainWindow.focus(); });
   ipcMain.on('app:quit', () => { app.isQuiting = true; app.quit(); });
   ipcMain.on('error:dismiss', () => { try { errorWindow.destroy(); } catch {} });
