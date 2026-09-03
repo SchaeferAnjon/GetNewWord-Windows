@@ -66,6 +66,7 @@ function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1180, height: 720, minWidth: 1000, minHeight: 620,
     title: 'GetNewWord',
+    icon: path.join(__dirname, 'assets', 'icon.png'),
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#16171A' : '#FAFAFB',
     webPreferences: { preload: PRELOAD }
   });
