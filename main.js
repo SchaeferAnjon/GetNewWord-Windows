@@ -236,7 +236,12 @@ function registerIPC() {
   ipcMain.on('panel:setCategory', (_e, forWords, i, catId) => analysis.setCategory(forWords, i, catId));
   ipcMain.handle('panel:createCategory', (_e, forWords, i, name) => analysis.createCategoryAndAssign(forWords, i, name));
   ipcMain.on('panel:save', () => analysis.saveSelected());
-  ipcMain.on('panel:pin', (_e, pinned) => { panelPinned = pinned; });
+  // Return the authoritative state so the renderer only shows the button as
+  // active after the main process has started protecting the panel from blur.
+  ipcMain.handle('panel:setPinned', (_e, pinned) => {
+    panelPinned = Boolean(pinned);
+    return panelPinned;
+  });
   ipcMain.on('panel:requestState', () => analysis.pushState());
 
   // --- 发音 ---
