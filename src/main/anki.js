@@ -83,6 +83,13 @@ function hl(text, word) {
   } catch { return text; }
 }
 
+/// 中文译文里高亮语境义项
+function hlSense(text, sense) {
+  const s = (sense || '').trim();
+  if (!s || !text || !text.includes(s)) return text || '';
+  return text.replace(s, `<span class="kw">${s}</span>`);
+}
+
 /// Back 字段：整个义项列表，当前语境义项加粗标色
 function emphasizedMeaningHTML(w) {
   const cm = w.contextMeaning;
@@ -221,14 +228,14 @@ async function syncWord(w) {
 
   const contexts = w.contexts || [];
   const contextHTML = contexts.map(c => `<div class="ctx">${hl(c.sentence, w.word)}</div>`).join('');
-  const translationHTML = contexts.map(c => `<div class="ctx-tr">${c.translation}</div>`).join('');
+  const translationHTML = contexts.map(c => `<div class="ctx-tr">${hlSense(c.translation, w.contextMeaning)}</div>`).join('');
 
   const fields = {
     Front: w.word,
     Back: emphasizedMeaningHTML(w),
     Phonetic: w.phonetic || '',
     Context: contextHTML || hl(w.contextSentence, w.word),
-    ContextTranslation: translationHTML || w.contextTranslation || '',
+    ContextTranslation: translationHTML || hlSense(w.contextTranslation, w.contextMeaning) || '',
     Analysis: composeAnalysisHTML(w),
     Screenshot: '',
     Language: db.languageDisplayName(w.language),
