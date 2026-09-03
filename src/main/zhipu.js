@@ -28,10 +28,11 @@ const apiKey = (p) => db.getSetting((p || currentProvider()).keySetting) || '';
 const isConfigured = () => !!apiKey();
 const currentProviderName = () => currentProvider().displayName;
 
-/// 思考配置：默认关；等级 low/high/max 仅智谱生效
+/// 思考配置：默认关；智谱支持等级 low/high/max，DeepSeek 只有开/关
 function thinkingConfig(p) {
   if (!p.supportsThinking) return undefined;
   if (!db.getSetting('thinkingEnabled')) return { type: 'disabled' };
+  if (p.model.startsWith('deepseek')) return { type: 'enabled' };
   return { type: db.getSetting('thinkingLevel') || 'low' };
 }
 

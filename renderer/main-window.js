@@ -698,7 +698,7 @@ async function renderSettings() {
       <div class="set-row"><label><input type="checkbox" id="ckThink" ${s.thinkingEnabled ? 'checked' : ''}> 开启思考（更准但更慢）</label>
         <span class="seg" id="segThink">
           <button data-v="low">低</button><button data-v="high">高</button><button data-v="max">最高</button></span></div>
-      <div class="set-note">默认关闭。仅对智谱生效；DeepSeek 忽略此设置。开着会显著变慢，日常取词不建议开。</div>
+      <div class="set-note">默认关闭，对智谱和 DeepSeek 都生效；思考等级仅智谱支持（DeepSeek 只分开/关）。开着会显著变慢，日常取词不建议开。</div>
       <hr class="hairline">
       <div class="section-label">智谱 BigModel API</div>
       <div class="set-row"><input class="gnw grow" type="password" id="keyZhipu" value="${esc(s.zhipuKey || '')}" placeholder="API Key">
