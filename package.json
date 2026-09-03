@@ -1,7 +1,7 @@
 {
   "name": "getnewword",
   "productName": "GetNewWord",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "截图取词 → AI 释义 → 词库 → Anki 卡片（Windows 版，与 macOS 版逻辑一致）",
   "main": "main.js",
   "scripts": {

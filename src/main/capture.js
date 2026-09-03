@@ -59,6 +59,10 @@ async function captureRegion() {
           quality: 0.9
         });
       });
+      // 兜底：渲染出问题导致 overlay:ready 永不到达时，1.5s 后强制显示，避免流程卡死在隐形窗口
+      setTimeout(() => {
+        if (!win.isDestroyed() && !win.isVisible()) { win.show(); win.focus(); }
+      }, 1500);
       overlays.push(win);
     });
   });
