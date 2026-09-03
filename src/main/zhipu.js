@@ -17,7 +17,9 @@ const PROVIDERS = {
     baseURL: 'https://api.deepseek.com/chat/completions',
     model: 'deepseek-v4-flash-vision-exp',
     keySetting: 'deepseekKey',
-    supportsThinking: false
+    // V4 enables thinking by default. Mark it as supported so the existing
+    // setting sends thinking:disabled for the normal fast lookup path.
+    supportsThinking: true
   }
 };
 
@@ -220,7 +222,7 @@ async function analyzeScreenshot(imageDataURL, categoryTree) {
   return parseAnalysisResult(content);
 }
 
-/// 极速识词（~15 token 输出，2 秒级）：红框是知识点时返回空词头
+/// 极速识词（2 秒级）：红框是知识点时返回空词头
 async function quickExtract(smallImageDataURL) {
   const prompt = `图中红框是用户圈选的目标。先判断类型，再只返回 JSON：
 - 红框内是一个单词或短语（大致 ≤5 个词）→ {"word": "词典形式（名词不带冠词；短语保留完整，只把中心词还原原形，如 "Traffic confluences" → "traffic confluence"，不要只取中心词）", "language": "en/de/fr/es/ja/ko/zh"}
@@ -232,7 +234,9 @@ async function quickExtract(smallImageDataURL) {
       { type: 'text', text: prompt }
     ]
   };
-  const response = await sendRequest([message], { maxTokens: 100 });
+  // V4 may count a small amount of internal/output framing against the limit.
+  // 256 leaves enough room for a complete JSON object without slowing the call.
+  const response = await sendRequest([message], { maxTokens: 256 });
   const content = response.choices?.[0]?.message?.content || '';
   const q = JSON.parse(extractJSON(content));
   if (typeof q.word !== 'string') throw new Error('quick parse failed');
