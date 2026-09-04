@@ -39,8 +39,14 @@ function thinkingConfig(p) {
 const RETRY_DELAYS = [1000, 2000];
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+/// 重试前广播（面板据此显示「网络较慢，正在重试」）
+let retryListener = null;
+function onRetry(fn) { retryListener = fn; }
+function willRetry(n) { try { retryListener?.(n); } catch {} }
+
 /// 发送 API 请求（重试机制与 macOS 版一致：5xx / 网络错误重试 2 次）
-async function sendRequest(messages, { maxTokens = 8192, retry = 0 } = {}) {
+/// timeoutMs：卡住的请求越早放弃越早重试；带思考的主分析可能真的很慢，调用方按情况给
+async function sendRequest(messages, { maxTokens = 8192, timeoutMs = 60000, retry = 0 } = {}) {
   const p = currentProvider();
   const key = apiKey(p);
   if (!key) throw new Error(`未配置 ${p.displayName} 的 API Key，请打开设置 → API 填写`);
@@ -59,7 +65,7 @@ async function sendRequest(messages, { maxTokens = 8192, retry = 0 } = {}) {
   let res, data;
   try {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 300000);   // 5 分钟超时
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
     res = await fetch(p.baseURL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
@@ -70,8 +76,9 @@ async function sendRequest(messages, { maxTokens = 8192, retry = 0 } = {}) {
   } catch (e) {
     log(`[Zhipu] ✗ network ${e.message} after ${((Date.now() - started) / 1000).toFixed(1)}s`);
     if (retry < RETRY_DELAYS.length) {
+      willRetry(retry + 1);
       await sleep(RETRY_DELAYS[retry]);
-      return sendRequest(messages, { maxTokens, retry: retry + 1 });
+      return sendRequest(messages, { maxTokens, timeoutMs, retry: retry + 1 });
     }
     throw new Error(`网络请求失败：${e.message}`);
   }
@@ -81,8 +88,9 @@ async function sendRequest(messages, { maxTokens = 8192, retry = 0 } = {}) {
 
   if (!res.ok) {
     if (res.status >= 500 && retry < RETRY_DELAYS.length) {
+      willRetry(retry + 1);
       await sleep(RETRY_DELAYS[retry]);
-      return sendRequest(messages, { maxTokens, retry: retry + 1 });
+      return sendRequest(messages, { maxTokens, timeoutMs, retry: retry + 1 });
     }
     let msg = `HTTP 状态码 ${res.status}`;
     try { msg = JSON.parse(data).error?.message || msg; } catch {}
@@ -212,7 +220,9 @@ async function analyzeScreenshot(imageDataURL, categoryTree) {
       { type: 'text', text: buildWordAnalysisPrompt(categoryTree) }
     ]
   };
-  const response = await sendRequest([message]);
+  // 不开思考时正常 5–9s 回来；30s 还没回基本是链路卡住，尽早放弃去重试。开思考可能真的慢，放宽
+  const thinkingOn = (thinkingConfig(currentProvider())?.type || 'disabled') !== 'disabled';
+  const response = await sendRequest([message], { timeoutMs: thinkingOn ? 120000 : 30000 });
   const choice = response.choices?.[0];
   const content = choice?.message?.content;
   if (!content || !content.trim()) {
@@ -237,7 +247,7 @@ async function quickExtract(smallImageDataURL) {
   };
   // V4 may count a small amount of internal/output framing against the limit.
   // 256 leaves enough room for a complete JSON object without slowing the call.
-  const response = await sendRequest([message], { maxTokens: 256 });
+  const response = await sendRequest([message], { maxTokens: 256, timeoutMs: 15000 });
   const content = response.choices?.[0]?.message?.content || '';
   const q = JSON.parse(extractJSON(content));
   if (typeof q.word !== 'string') throw new Error('quick parse failed');
@@ -288,4 +298,4 @@ async function validateKey(key, providerName) {
   return { valid: true };
 }
 
-module.exports = { analyzeScreenshot, quickExtract, enrichWord, validateKey, isConfigured, currentProviderName };
+module.exports = { analyzeScreenshot, quickExtract, enrichWord, validateKey, isConfigured, currentProviderName, onRetry };

@@ -162,9 +162,11 @@ function render() {
 function renderHeader() {
   const t = document.getElementById('h-title');
   const sub = document.getElementById('h-sub');
+  sub.style.color = '';
   if (!S.result) {
     t.innerHTML = `<span class="spinner"></span> 识别中`;
-    sub.textContent = S.cachedHit ? '词库直出 · 正在核对语境…' : (S.quickWord ? '释义生成中…' : '正在识别选区…');
+    sub.textContent = S.netHint || (S.cachedHit ? '词库直出 · 正在核对语境…' : (S.quickWord ? '释义生成中…' : '正在识别选区…'));
+    sub.style.color = S.netHint ? 'var(--warn)' : '';
   } else if (S.autoSaved) {
     const wc = liveWords().length, sc = liveSnippets().length;
     t.innerHTML = `<span style="color:var(--ok)">✓</span> 已保存`;

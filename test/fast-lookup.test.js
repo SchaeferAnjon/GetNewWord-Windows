@@ -15,7 +15,7 @@ test('DeepSeek V4 receives the configured thinking mode', () => {
 });
 
 test('quick extraction has enough output budget for complete JSON', () => {
-  const quick = source.match(/async function quickExtract[\s\S]*?sendRequest\(\[message\],\s*\{\s*maxTokens:\s*(\d+)\s*\}/);
+  const quick = source.match(/async function quickExtract[\s\S]*?sendRequest\(\[message\],\s*\{\s*maxTokens:\s*(\d+)[^}]*\}/);
   assert.ok(quick, 'quick extraction token budget should be explicit');
   assert.ok(Number(quick[1]) >= 256);
 });

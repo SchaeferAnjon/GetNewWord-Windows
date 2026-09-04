@@ -11,7 +11,15 @@ const { log } = require('./applog');
 
 let windows = null;   // 由 main.js 注入 { showPanel, hidePanel, panelSend, showError, refreshMain }
 
-function init(w) { windows = w; }
+function init(w) {
+  windows = w;
+  // 请求重试时把面板副标题换成「网络较慢，正在重试」
+  zhipu.onRetry((n) => {
+    if (!S || S.result) return;
+    S.netHint = `网络较慢，正在重试（第 ${n} 次）…`;
+    pushState();
+  });
+}
 
 // ---------- 状态 ----------
 
@@ -23,6 +31,7 @@ function freshState(mode) {
     analyzing: true,
     result: null,               // { words:[], snippets:[] }
     quickWord: null,            // { word, language }
+    netHint: null,              // 网络慢/重试中提示（面板副标题）
     screenshotDataURL: null,
     autoSaved: false,
     selectedIndices: [],
@@ -68,6 +77,14 @@ async function trigger(mode = 'capture') {
   // 1. 面板立刻弹出（骨架态）
   windows.showPanel();
   pushState();
+
+  // 8 秒还没结果：告诉用户是网慢，不是软件没反应（重试通知会再覆盖这句）
+  const slowState = S;
+  setTimeout(() => {
+    if (S !== slowState || S.result || S.netHint) return;
+    S.netHint = '网络较慢，仍在等待回复…';
+    pushState();
+  }, 8000);
 
   // 2. 并行：极速识词（出词头 + 发音 + 提前起跑补全）
   const myState = S;
@@ -115,6 +132,7 @@ async function trigger(mode = 'capture') {
     if (S !== myState) return;
     result = enforceExclusive(result);
     S.analyzing = false;
+    S.netHint = null;
 
     // 快速识词是否认对了（词头一致）
     const first = result.words[0];
