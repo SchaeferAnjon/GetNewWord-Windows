@@ -220,7 +220,7 @@ function cachedCardHTML(w) {
       ${w.contextTranslation ? `<div class="ctx-tr">${emphasizeTranslationHTML(w.translationKeyword, w.contextMeaning, w.contextTranslation)}</div>` : ''}
     </div></div>`;
   }
-  if (e.usage) h += `<div class="sec"><div class="section-label">用法</div><div class="usage-box">${esc(e.usage)}</div></div>`;
+  if (e.usage) h += `<div class="sec"><div class="section-label">用法</div><div class="usage-box">${hlHTML(w.word, e.usage)}</div></div>`;
   if (e.collocations?.length) h += `<div class="sec"><div class="section-label">搭配</div>${e.collocations.map(c => exampleHTML(c, w.word)).join('')}</div>`;
   if (e.examples?.length) h += `<div class="sec"><div class="section-label">例句</div>${e.examples.map(x => exampleHTML(x, w.word)).join('')}</div>`;
   if (e.etymology) h += `<div class="sec"><div class="section-label">词根词源</div><div class="ety">${esc(e.etymology)}</div></div>`;
@@ -281,7 +281,7 @@ function wordCardHTML(w, i) {
     h += `<div class="sec shot"><div class="section-label">截图</div><img src="${S.screenshotDataURL}"></div>`;
   }
 
-  if (usage) h += `<div class="sec"><div class="section-label">用法</div><div class="usage-box">${esc(usage)}</div></div>`;
+  if (usage) h += `<div class="sec"><div class="section-label">用法</div><div class="usage-box">${hlHTML(w.word, usage)}</div></div>`;
 
   if (!S.enrichments[i] && !(colls && colls.length) && !(examples && examples.length)) {
     h += `<div class="enriching"><span class="spinner"></span> 用法 · 例句 · 词根词源 生成中…</div>`;

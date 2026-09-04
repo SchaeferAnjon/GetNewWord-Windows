@@ -119,7 +119,7 @@ function composeAnalysisHTML(w) {
     }
     return `<div class="ctx">${foreign}</div>`;
   };
-  if (w.analysisNote) parts.push(`<div class="lbl">用 法</div><div class="usage">${w.analysisNote}</div>`);
+  if (w.analysisNote) parts.push(`<div class="lbl">用 法</div><div class="usage">${hl(w.analysisNote, w.word)}</div>`);
   if (w.collocationsText) parts.push(`<div class="lbl">搭 配</div><div class="sec">${w.collocationsText.split('\n').map(line).join('')}</div>`);
   if (w.examplesText) parts.push(`<div class="lbl">例 句</div><div class="sec">${w.examplesText.split('\n').map(line).join('')}</div>`);
   if (w.etymology) parts.push(`<div class="lbl">词根词源</div><div class="sec">${w.etymology}</div>`);

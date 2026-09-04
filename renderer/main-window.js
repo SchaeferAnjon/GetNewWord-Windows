@@ -375,7 +375,7 @@ function detailHTML(w) {
     h += `</div>`;
   }
 
-  if (w.analysisNote) h += `<div class="sec"><div class="section-label">用法</div><div class="usage-box">${esc(w.analysisNote)}</div></div>`;
+  if (w.analysisNote) h += `<div class="sec"><div class="section-label">用法</div><div class="usage-box">${hlHTML(w.word, w.analysisNote)}</div></div>`;
   if (w.collocationsText) h += `<div class="sec"><div class="section-label">搭配</div>${w.collocationsText.split('\n').map(l => `<div class="d-extra">${hlHTML(w.word, l)}</div>`).join('')}</div>`;
   if (w.examplesText) h += `<div class="sec"><div class="section-label">例句</div>${w.examplesText.split('\n').map(l => `<div class="d-extra">${hlHTML(w.word, l)}</div>`).join('')}</div>`;
   if (w.etymology) h += `<div class="sec"><div class="section-label">词根词源</div><div class="d-ety">${esc(w.etymology)}</div></div>`;
